@@ -1,4 +1,6 @@
 from PIL import Image
+import wave
+import struct
 import numpy as np
 
 STRING_END = '\0'
@@ -7,8 +9,10 @@ STRING_END = '\0'
 
 
 def main():
-    encrypt("you're gay", "Miku.png", "Mikuded.png")
-    print(decrypt("Mikuded.png"))
+    encrypt("Image Test", "Miku.png", "MikuC.png")
+    print(decrypt("MikuC.png"))
+    encryptAudio("Audio Test", 'sample.wav', 'sampleCod.wav')
+    print(decryptAudio('sampleCod.wav'))
 
 
 
@@ -18,7 +22,7 @@ def encrypt(msg, image_path, save_path):
     image_array = np.array(img)
 
     # Image dimensions
-    height, width = image_array.shape[:2]
+    _, width = image_array.shape[:2]
 
     msg += STRING_END
     encoded = msg.encode('utf-8')
@@ -41,9 +45,7 @@ def encrypt(msg, image_path, save_path):
 
             image_array[pixel_x, pixel_y, chan] = dec_val  # set the new value
             j += 1 #next bit
-    print("encoded " + str(j) + " bits successfully")
     Image.fromarray(image_array).save(save_path)
-
 
 def decrypt(image_path):
     decoded = ''
@@ -80,9 +82,88 @@ def decrypt(image_path):
         decoded += letter
 
     decoded = decoded.strip() #Remove clear char
-    print("decoded " + str(j) + " bits successfully")
 
     return decoded
+
+def encryptAudio(msg, wav_input, wav_output):
+    with wave.open(wav_input, 'rb') as wav_file:
+        params = wav_file.getparams()
+        nchanl, sampwidth, _, nframes, _, _ = params
+
+        if sampwidth != 2:
+            print("Only support for 16-bit WAV")
+            return
+
+        sample_count = nframes * nchanl #total number of samples
+
+        msg += STRING_END
+        encoded = msg.encode('utf-8')
+
+        #turn message into array of bits
+        bits = []
+        for byte in encoded:
+            for i in range(8):
+                bits.append((byte >> (7 - i)) & 1)
+        
+        if len(encoded) > sample_count // 8:
+            print("msg too big for audio file")
+            return
+        
+        frames = wav_file.readframes(nframes)
+        # Assumes 16-bit signed little-endian samples ('h')
+        samples = list(struct.unpack(f"<{sample_count}h", frames))
+
+        modified_samples = []
+        bit_index = 0
+        for sample in samples:
+            if bit_index < len(bits):
+                modified_sample = (sample & ~1) | bits[bit_index]
+                modified_samples.append(modified_sample)
+                bit_index += 1
+            else:
+                modified_samples.append(sample) # put the rest as original
+
+        # Write the modified samples to the output file
+        with wave.open(wav_output, 'wb') as wav_out:
+            wav_out.setparams(params)
+            packed_frames = struct.pack(f"<{sample_count}h", *modified_samples)
+            wav_out.writeframes(packed_frames)
+
+def decryptAudio(input_wav):
+    with wave.open(input_wav, 'rb') as wav_file:
+        nchanl, sampwidth, _, nframes, _, _ = wav_file.getparams()
+
+        if sampwidth != 2:
+            print("Only supports 16-bit WAV files.")
+            return None
+
+        total_samples = nchanl * nframes
+        frames = wav_file.readframes(nframes)
+        samples = struct.unpack(f"<{total_samples}h", frames)
+
+        extracted_bits = [(sample & 1) for sample in samples] #extract bits off samples
+        bit_string = "".join(map(str, extracted_bits)) #string of all lsb bits
+
+        j = 0
+        decoded = ''
+        while j + 8 < len(bit_string):
+            byte_str = ''
+            for i in range(8):
+                byte_str += bit_string[j]
+                j += 1
+
+            letter = int(byte_str, 2).to_bytes().decode()
+
+            if letter == STRING_END:
+                break
+
+            decoded += letter
+
+        decoded = decoded.strip() 
+
+        return decoded
+        
+ 
 
 if __name__=="__main__":
     main()
