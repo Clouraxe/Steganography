@@ -2,6 +2,7 @@ from PIL import Image
 import wave
 import struct
 import numpy as np
+import sys
 
 STRING_END = '\0'
 
@@ -9,10 +10,35 @@ STRING_END = '\0'
 
 
 def main():
-    encrypt("Image Test", "Miku.png", "MikuC.png")
-    print(decrypt("MikuC.png"))
-    encryptAudio("Audio Test", 'sample.wav', 'sampleCod.wav')
-    print(decryptAudio('sampleCod.wav'))
+    
+    if len(sys.argv) != 4 and len(sys.argv) != 2:
+        print("Usage: \nFor encoding: python program.py <file_to_encode> <output_file> <message>")
+        print("For decoding: python program.py <encoded_file>")
+        print("Error: please provide 1 or 3 arguments.")
+        sys.exit(1) # Exit with a non-zero status to indicate an error
+    
+    if len(sys.argv) == 4: #for encoding
+        file_to_encode = sys.argv[1]
+        output_file = sys.argv[2]
+        message = sys.argv[3]
+        if file_to_encode.endswith('.png'):
+            encrypt(message, file_to_encode, output_file)
+        elif file_to_encode.endswith('.wav'):
+            encryptAudio(message, file_to_encode, output_file)
+        else:
+            print("Unsupported file type. Please provide a .png or .wav file.")
+            sys.exit(1)
+    
+    if len(sys.argv) == 2: #for decoding
+        encoded_file = sys.argv[1]
+        if encoded_file.endswith('.png'):
+            print(decrypt(encoded_file))
+        elif encoded_file.endswith('.wav'):
+            print(decryptAudio(encoded_file))
+        else:
+            print("Unsupported file type. Please provide a .png or .wav file.")
+            sys.exit(1)
+
 
 
 
@@ -165,5 +191,5 @@ def decryptAudio(input_wav):
         
  
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
