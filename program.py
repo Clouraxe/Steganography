@@ -21,6 +21,7 @@ def main():
         file_to_encode = sys.argv[1]
         output_file = sys.argv[2]
         message = sys.argv[3]
+        if not output_file.__contains__('.'): output_file += '.png' if file_to_encode.endswith('.png') else '.wav'
         if file_to_encode.endswith('.png'):
             encrypt(message, file_to_encode, output_file)
         elif file_to_encode.endswith('.wav'):
